@@ -29,13 +29,20 @@ class CaptureController extends PayumController
 
     public function doAction(Request $request)
     {
-        $token = $this->getPayum()->getHttpRequestVerifier()->verify($request);
+        try{
+            $token = $this->getPayum()->getHttpRequestVerifier()->verify($request);
 
-        $gateway = $this->getPayum()->getGateway($token->getGatewayName());
-        $gateway->execute(new Capture($token));
-        
-        $this->getPayum()->getHttpRequestVerifier()->invalidate($token);
-        
-        return $this->redirect($token->getAfterUrl());
+            $gateway = $this->getPayum()->getGateway($token->getGatewayName());
+            $gateway->execute(new Capture($token));
+            
+            $this->getPayum()->getHttpRequestVerifier()->invalidate($token);
+            
+            return $this->redirect($token->getAfterUrl());
+        } catch (\PayPal\Exception\PayPalConnectionException $ex) {
+            $newOrderUrl = $this->generateUrl('TtsSelfRegisterBundle_order_new');
+            $message = json_decode($ex->getData())->details[0]->issue;
+            $payPalConnectionException = new \PayPal\Exception\PayPalConnectionException($newOrderUrl, $message);
+            throw $payPalConnectionException;
+        }
     }
 }
